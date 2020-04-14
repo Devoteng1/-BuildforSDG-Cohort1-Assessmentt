@@ -1,3 +1,5 @@
+const helper = require('./helper');
+
 const covid19ImpactEstimator = (data) => {
   const input = data;
   const currentlyInfected = data.reportedCases * 10;
@@ -11,33 +13,33 @@ const covid19ImpactEstimator = (data) => {
   } else if (data.periodType === 'months') {
     estimateTime = data.timeToElapse * 30;
   }
-  const setOfDays = Math.floor(estimateTime / 3);
+  const setOfDays = helper(estimateTime / 3);
   const infectionsByRequestedTime = currentlyInfected * (2 ** setOfDays);
   const severeInfectionsByRequestedTime = severeCurrentlyInfected * (2 ** setOfDays);
 
-  const severeCasesByRequestedTime = Math.floor((15 / 100) * infectionsByRequestedTime);
-  const severeSevereCasesByRequestedTime = Math.floor((15 / 100) * severeInfectionsByRequestedTime);
+  const severeCasesByRequestedTime = helper((15 / 100) * infectionsByRequestedTime);
+  const severeSevereCasesByRequestedTime = helper((15 / 100) * severeInfectionsByRequestedTime);
 
   // calculate the number of beds
-  const bedsAlreadyOccupied = Math.floor((65 / 100) * data.totalHospitalBeds);
-  const availableBeds = Math.floor(data.totalHospitalBeds - bedsAlreadyOccupied);
+  const bedsAlreadyOccupied = helper((65 / 100) * data.totalHospitalBeds);
+  const availableBeds = helper(data.totalHospitalBeds - bedsAlreadyOccupied);
   const hospitalBedsByRequestedTime = availableBeds - severeCasesByRequestedTime;
   const severeHospitalBedsByRequestedTime = availableBeds - severeSevereCasesByRequestedTime;
 
   // cases that require ICU care
-  const casesForICUByRequestedTime = Math.floor((5 / 100) * infectionsByRequestedTime);
-  const severeCasesForICUByRequestedTime = Math.floor((5 / 100) * severeInfectionsByRequestedTime);
+  const casesForICUByRequestedTime = helper((5 / 100) * infectionsByRequestedTime);
+  const severeCasesForICUByRequestedTime = helper((5 / 100) * severeInfectionsByRequestedTime);
 
   // cases that will require ventilators
-  const casesForVentilatorsByRequestedTime = Math.floor((2 / 100) * infectionsByRequestedTime);
-  const severeCasesForVentByRequestedTime = Math.floor((2 / 100) * severeInfectionsByRequestedTime);
+  const casesForVentilatorsByRequestedTime = helper((2 / 100) * infectionsByRequestedTime);
+  const severeCasesForVentByRequestedTime = helper((2 / 100) * severeInfectionsByRequestedTime);
 
   // amount of money to be lost in the economy
   const totalIncome = data.region.avgDailyIncomeInUSD * estimateTime;
   const dailyAvgIncome = data.region.avgDailyIncomePopulation;
-  const dollarsInFlight = (infectionsByRequestedTime * dailyAvgIncome) * totalIncome;
+  const dollarsInFlight = (infectionsByRequestedTime * dailyAvgIncome * totalIncome)/data.timeToElapse;
   const calculation = severeInfectionsByRequestedTime * dailyAvgIncome;
-  const serverDollarsInFlight = calculation * totalIncome;
+  const serverDollarsInFlight = (calculation * totalIncome)/data.timeToElapse;
   // return response data
   return {
     data: input,
