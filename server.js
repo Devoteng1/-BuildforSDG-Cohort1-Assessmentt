@@ -90,4 +90,3 @@ function logData(method, requestPath, time) {
   fs.appendFile(logFile, `${method}\t\t${requestPath}\t\t200\t\t${time}ms\n`, () => {});
 }
 
-module.exports = app;
