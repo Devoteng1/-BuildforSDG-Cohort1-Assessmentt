@@ -47,7 +47,7 @@ const covid19ImpactEstimator = (data) => {
       severeCasesByRequestedTime,
       hospitalBedsByRequestedTime,
       casesForICUByRequestedTime,
-      casesForVentilatorsByRequestedTime, 
+      casesForVentilatorsByRequestedTime,
       dollarsInFlight
     },
     severeImpact: {
@@ -62,5 +62,3 @@ const covid19ImpactEstimator = (data) => {
   };
 };
 module.exports = covid19ImpactEstimator;
-
-
