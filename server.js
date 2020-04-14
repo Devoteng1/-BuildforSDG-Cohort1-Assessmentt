@@ -66,7 +66,7 @@ app.get('/api/v1/on-covid-19/logs', (req, res) => {
     const end = new Date();
 
     logData('GET', req.route.path, end - start);
-
+    res.header('Content-Type', 'text/plain; charset=UTF-8')
     res.send(content || '');
   });
 });
