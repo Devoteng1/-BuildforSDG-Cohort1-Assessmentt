@@ -1,7 +1,7 @@
 const truncator = (value, precision) => {
-    let step = Math.pow(10,precision || 0);
-    let temp = Math.trunc(step * value);
+  const step = 10 ** precision || 0;
+  const temp = Math.trunc(step * value);
 
-    return temp / step;
+  return temp / step;
 };
 module.exports = truncator;
