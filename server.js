@@ -1,150 +1,93 @@
-/*const express = require('express');
-const bodyParser = require('body-parser');
-const dotenv = require('dotenv');
-const cors = require('cors');
-const morgan = require('morgan');
-const path = require('path');
 const fs = require('fs');
-const swaggerUi = require('swagger-ui-express');
-
-
-
-//import Routes
-const postEstimate =require('./src/route/postEstimate.route');
-const getLogs = require('./src/route/getLogs.route');
-
-
-
-// import swagger file
-//const apiDocs = require('../swagger.json');
-
-dotenv.config();
-
-const app = express();
-
-//configure body parser
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({extended: false}));
-
-//cors
-app.use(cors());
-
-//morgan
-app.use(morgan('dev'));
-
-
-// log all requests to access.log
-app.use(morgan('tiny', {
-    stream: fs.createWriteStream(path.join(__dirname, 'logs.txt'), { flags: 'a' })
-  }));
-
-const PORT = process.env.PORT || 6000
-
-//routes
-app.use('/api/v1', postEstimate);
-app.use('/api/v1', getLogs);
-
-// api docs
-//app.use('/api/v1/docs', swaggerUi.serve, swaggerUi.setup(apiDocs));
-
-
-//welcome routes
-app.get('/', (req,res) => {
-  res.status(200).json({
-      message: 'welcome to the api'
-  });
-});
-
-//catch wrong route
-app.use('*', (req,res) => {
-    res.status(404).json({
-        message: 'route does not  exist'
-    })
-})
-
-
-
-
-
-
-app.listen(PORT, ()=>{
-    console.log(`Server is running at port ${PORT}`);
-});*/
-
+const path = require('path');
 const express = require('express');
-const morgan = require('morgan');
-const helmet = require('helmet');
+const bodyParser = require('body-parser');
 const cors = require('cors');
-const fs = require('fs');
-const path = require('path');
-const { toXML } = require('jstoxml');
+const compression = require('compression');
+const js2xmlparser = require('js2xmlparser');
 
 const estimator = require('./src/estimator');
 
 const app = express();
 
-const accessLogStream = fs.createWriteStream(path.join(__dirname, 'logs.log'), {
-  flags: 'a'
+const logFile = 'logs.txt';
+
+app.use((req, res, next) => {
+  if (req.headers['x-forwarded-proto'] === 'http') {
+    return res.redirect(`https://${req.headers.host}${req.url}`);
+  }
+  next();
 });
-// middleware
 
-app.use(helmet());
-app.use(express.urlencoded({ extended: false }));
-app.use(express.json());
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: false }));
+
 app.use(cors());
-app.use(
-  morgan(':method :url :status :response-time ms', { stream: accessLogStream }));
 
-const PORT = process.env.PORT || 8000;
+app.use(compression());
+
+app.use(express.static('./public'));
 
 app.post('/api/v1/on-covid-19', (req, res) => {
+  const start = new Date();
   const result = estimator(req.body);
-  res.status(200).json(result);
+  const end = new Date();
+
+  logData('POST', req.route.path, end - start);
+
+  res.json(result);
 });
 
-app.post('/api/v1/on-covid-19/:restype', (req, res) => {
-  const { restype } = req.params;
-  const results = estimator(req.body);
+app.post('/api/v1/on-covid-19/json', (req, res) => {
+  const start = new Date();
+  const result = estimator(req.body);
+  const end = new Date();
 
-  if (restype === 'xml') { 
-    res.setHeader('Content-Type', 'application/xml');
-    const resultXML = toXML({
-      root: results
-    });
-    return res.status(200).send(resultXML);
-  }
-  return res.status(200).json(results);
+  logData('POST', req.route.path, end - start);
+
+  res.json(result);
+});
+
+app.post('/api/v1/on-covid-19/xml', (req, res) => {
+  const start = new Date();
+  const result = js2xmlparser.parse('root', estimator(req.body));
+  const end = new Date();
+
+  logData('POST', req.route.path, end - start);
+
+  res.header('Content-Type', 'application/xml; charset=UTF-8');
+  res.send(result);
 });
 
 app.get('/api/v1/on-covid-19/logs', (req, res) => {
-  const file = fs.readFileSync(path.join(__dirname, 'logs.log'), {
-    encoding: 'utf8'
+  const start = new Date();
+
+  fs.readFile(path.join(__dirname, logFile), 'UTF-8', (error, content) => {
+    const end = new Date();
+
+    logData('GET', req.route.path, end - start);
+
+    res.send(content || '');
   });
-
-  res.setHeader('Content-Type', 'text/plain');
-
-  res.status(200).send(file);
 });
 
-app.use((req, res) => {
-  // console.log(res);
-  res.status(404).json({ message: '404' });
+app.delete('/api/v1/on-covid-19/logs', (req, res) => {
+  fs.unlink(logFile, () => {});
+  res.send('Deleted');
 });
-//welcome routes
-app.use('/',(req,res) => {
-    res.status(200).json({
-        message: 'welcome to the api'
-    });
-  });
-  
-  //catch wrong route
-  app.use('*', (req,res) => {
-      res.status(404).json({
-          message: 'route does not  exist'
-      })
-  })
-  //console.log(estimator)
 
-app.listen(PORT, () => {
-  console.info(`App listening on PORT ${PORT}`);
-});
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT);
+
+console.log(`Express app running on port ${PORT}`);
+
+function logData(method, requestPath, time) {
+  if (time < 10) {
+    time = `0${time.toString()}`;
+  }
+
+  fs.appendFile(logFile, `${method}\t\t${requestPath}\t\t200\t\t${time}ms\n`, () => {});
+}
+
+module.exports = app;
